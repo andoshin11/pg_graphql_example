@@ -1,0 +1,1 @@
+https://supabase.github.io/pg_graphql/
