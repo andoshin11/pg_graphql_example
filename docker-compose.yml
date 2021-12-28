@@ -1,0 +1,67 @@
+version: '3'
+services:
+  postgres:
+    container_name: $POSTGRES_HOST
+    build:
+        context: .
+        dockerfile: ./db/Dockerfile
+    ports:
+      - "15432:5432"
+    env_file:
+      - ./.env
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - log_destination=stderr
+      - -c
+      - log_statement=all
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+    volumes:
+      - database:/var/lib/postgresql/data
+      - $PWD/db/dvdrental.tar:/tmp/dvdrental.tar
+      - $PWD/db/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+    healthcheck:
+      test: ["CMD-SHELL", "PGUSER=postgres", "pg_isready"]
+      interval: 1s
+      timeout: 10s
+      retries: 5
+    restart: always
+  server:
+    build:
+      context: ./server
+    env_file:
+      - ./.env
+    ports:
+      - "3010:$SERVER_PORT"
+    depends_on:
+      - postgres
+  # server:
+  # rest:
+  #   container_name: pg_graphql_postgrest
+  #   image: postgrest/postgrest:v9.0.0
+  #   restart: unless-stopped
+  #   ports:
+  #     - 3000:3000
+  #   depends_on:
+  #     - db
+  #   environment:
+  #     PGRST_DB_URI: postgres://postgres:password@db:5432/gqldb
+  #     PGRST_DB_SCHEMA: public, gql
+  #     PGRST_DB_ANON_ROLE: postgres
+
+  graphiql:
+    image: nginx:latest
+    ports:
+      - '7000:80'
+    volumes:
+      - ./graphiql:/usr/share/nginx/html
+volumes:
+  database:
+    driver: local
